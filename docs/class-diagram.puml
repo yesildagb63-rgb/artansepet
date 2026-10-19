@@ -1,0 +1,343 @@
+@startuml ArtanSepet_ClassDiagram
+' Artan Sepet - UML Sinif Diyagrami (v0.1, 19 Ekim 2026)
+' VS Code'da "PlantUML" eklentisiyle Alt+D ile onizleyebilirsiniz.
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+hide empty members
+
+title Artan Sepet - Sinif Diyagrami
+
+' =========================================================
+package "model" {
+  abstract class User {
+    - id : String
+    - name : String
+    - email : String
+    - passwordHash : String
+  }
+
+  class Customer {
+    - location : Location
+    - notifications : List<String>
+    + onNewBag(bag : SurpriseBag) : void
+  }
+
+  class Business {
+    - type : BusinessType
+    - address : String
+    - location : Location
+    - observers : List<BagObserver>
+    + subscribe(o : BagObserver) : void
+    + unsubscribe(o : BagObserver) : void
+    + notifyObservers(bag : SurpriseBag) : void
+  }
+
+  enum BusinessType {
+    BAKERY
+    RESTAURANT
+    MARKET
+  }
+
+  enum DietaryTag {
+    VEGAN
+    VEGETARIAN
+    GLUTEN_FREE
+    HALAL
+  }
+
+  class Location <<record>> {
+    + latitude : double
+    + longitude : double
+    + distanceTo(other : Location) : double
+  }
+
+  class SurpriseBag {
+    - id : String
+    - business : Business
+    - title : String
+    - originalPrice : BigDecimal
+    - quantity : int
+    - pickupStart : LocalDateTime
+    - pickupEnd : LocalDateTime
+    - tags : Set<DietaryTag>
+    - pricingStrategy : PricingStrategy
+    + getCurrentPrice(now : LocalDateTime) : BigDecimal
+    + reserveOne() : void <<synchronized>>
+    + releaseOne() : void <<synchronized>>
+    + isAvailable() : boolean
+  }
+
+  class Order {
+    - id : String
+    - customer : Customer
+    - bag : SurpriseBag
+    - paidPrice : BigDecimal
+    - pickupCode : String
+    - transactionId : String
+    - createdAt : LocalDateTime
+    - rating : Integer
+    - state : OrderState
+    + pay(processor : PaymentProcessor) : void
+    + markReady() : void
+    + pickUp(code : String) : void
+    + cancel() : void
+    + expire() : void
+    ~ setState(s : OrderState) : void
+  }
+}
+
+User <|-- Customer
+User <|-- Business
+Business --> BusinessType
+Business "1" o-- "*" SurpriseBag : sunar >
+SurpriseBag --> "*" DietaryTag
+Customer "1" --> "*" Order : verir >
+Order "*" --> "1" SurpriseBag
+
+' =========================================================
+package "creation (Builder + Factory Method)" {
+  class SurpriseBagBuilder {
+    + business(b : Business) : SurpriseBagBuilder
+    + title(t : String) : SurpriseBagBuilder
+    + originalPrice(p : BigDecimal) : SurpriseBagBuilder
+    + quantity(q : int) : SurpriseBagBuilder
+    + pickupWindow(start, end) : SurpriseBagBuilder
+    + tag(t : DietaryTag) : SurpriseBagBuilder
+    + pricing(s : PricingStrategy) : SurpriseBagBuilder
+    + build() : SurpriseBag
+  }
+
+  abstract class BagFactory {
+    + createBag(b : Business, price, qty, start, end) : SurpriseBag
+    # {abstract} configure(builder : SurpriseBagBuilder) : void
+  }
+  class BakeryBagFactory {
+    # configure(builder) : void
+  }
+  class RestaurantBagFactory {
+    # configure(builder) : void
+  }
+  class MarketBagFactory {
+    # configure(builder) : void
+  }
+}
+
+SurpriseBagBuilder ..> SurpriseBag : <<create>>
+BagFactory ..> SurpriseBagBuilder : kullanir
+BagFactory <|-- BakeryBagFactory
+BagFactory <|-- RestaurantBagFactory
+BagFactory <|-- MarketBagFactory
+
+' =========================================================
+package "state (State)" {
+  interface OrderState {
+    + pay(o : Order, p : PaymentProcessor) : void
+    + markReady(o : Order) : void
+    + pickUp(o : Order, code : String) : void
+    + cancel(o : Order) : void
+    + expire(o : Order) : void
+    + name() : String
+  }
+  abstract class AbstractOrderState
+  note bottom of AbstractOrderState
+    Varsayilan: tum metotlar
+    InvalidStateTransitionException firlatir.
+    Alt siniflar sadece izinli gecisleri ezer.
+  end note
+  class ReservedState
+  class PaidState
+  class ReadyForPickupState
+  class PickedUpState
+  class CancelledState
+  class ExpiredState
+}
+
+Order o--> OrderState : state
+OrderState <|.. AbstractOrderState
+AbstractOrderState <|-- ReservedState
+AbstractOrderState <|-- PaidState
+AbstractOrderState <|-- ReadyForPickupState
+AbstractOrderState <|-- PickedUpState
+AbstractOrderState <|-- CancelledState
+AbstractOrderState <|-- ExpiredState
+
+' =========================================================
+package "pricing (Strategy)" {
+  interface PricingStrategy {
+    + calculate(bag : SurpriseBag, now : LocalDateTime) : BigDecimal
+  }
+  class FixedDiscountStrategy {
+    - rate : double
+  }
+  class LastHourDiscountStrategy {
+    - baseRate : double
+    - extraRate : double
+  }
+  class WeekendDiscountStrategy {
+    - weekendRate : double
+  }
+
+  interface BagSortStrategy {
+    + sort(bags : List<SurpriseBag>, c : Customer) : List<SurpriseBag>
+  }
+  class SortByPrice
+  class SortByDistance
+  class SortByPickupTime
+}
+
+SurpriseBag o--> PricingStrategy
+PricingStrategy <|.. FixedDiscountStrategy
+PricingStrategy <|.. LastHourDiscountStrategy
+PricingStrategy <|.. WeekendDiscountStrategy
+BagSortStrategy <|.. SortByPrice
+BagSortStrategy <|.. SortByDistance
+BagSortStrategy <|.. SortByPickupTime
+
+' =========================================================
+package "notification (Observer)" {
+  interface BagSubject {
+    + subscribe(o : BagObserver) : void
+    + unsubscribe(o : BagObserver) : void
+    + notifyObservers(bag : SurpriseBag) : void
+  }
+  interface BagObserver {
+    + onNewBag(bag : SurpriseBag) : void
+  }
+  class NotificationService {
+    + send(c : Customer, message : String) : void
+  }
+}
+
+BagSubject <|.. Business
+BagObserver <|.. Customer
+Business o--> "*" BagObserver : takipciler
+Customer ..> NotificationService
+
+' =========================================================
+package "payment (Adapter)" {
+  interface PaymentProcessor {
+    + charge(c : Customer, amount : BigDecimal) : PaymentResult
+    + refund(transactionId : String) : void
+  }
+  class PaymentResult <<record>> {
+    + success : boolean
+    + transactionId : String
+    + message : String
+  }
+  class IyzicoAdapter {
+    - client : IyzicoClient
+  }
+  class PaytrAdapter {
+    - gateway : PaytrGateway
+  }
+  class IyzicoClient <<sahte 3. parti>> {
+    + createPayment(req : Map<String,Object>) : String
+    + cancelPayment(paymentId : String) : boolean
+  }
+  class PaytrGateway <<sahte 3. parti>> {
+    + sendTransaction(merchantOid, kurus : long) : int
+    + reverse(merchantOid) : void
+  }
+}
+
+PaymentProcessor <|.. IyzicoAdapter
+PaymentProcessor <|.. PaytrAdapter
+IyzicoAdapter o--> IyzicoClient
+PaytrAdapter o--> PaytrGateway
+PaymentProcessor ..> PaymentResult
+
+' =========================================================
+package "repository (Singleton + Repository)" {
+  class DataStore <<Singleton>> {
+    - {static} instance : DataStore
+    - DataStore()
+    + {static} getInstance() : DataStore
+  }
+  interface UserRepository {
+    + save(u : User) : void
+    + findById(id : String) : Optional<User>
+  }
+  interface BagRepository {
+    + save(b : SurpriseBag) : void
+    + findById(id : String) : Optional<SurpriseBag>
+    + findAvailable() : List<SurpriseBag>
+  }
+  interface OrderRepository {
+    + save(o : Order) : void
+    + findById(id : String) : Optional<Order>
+    + findByState(stateName : String) : List<Order>
+  }
+  class InMemoryUserRepository
+  class InMemoryBagRepository
+  class InMemoryOrderRepository
+}
+
+UserRepository <|.. InMemoryUserRepository
+BagRepository <|.. InMemoryBagRepository
+OrderRepository <|.. InMemoryOrderRepository
+InMemoryUserRepository ..> DataStore
+InMemoryBagRepository ..> DataStore
+InMemoryOrderRepository ..> DataStore
+
+' =========================================================
+package "service (Facade)" {
+  class OrderFacade {
+    - bagRepo : BagRepository
+    - orderRepo : OrderRepository
+    - payment : PaymentProcessor
+    - codeGenerator : PickupCodeGenerator
+    - notifier : NotificationService
+    + placeOrder(customerId, bagId) : Order
+    + confirmPickup(orderId, code : String) : void
+    + cancelOrder(orderId : String) : void
+  }
+  class BagService {
+    - bagRepo : BagRepository
+    + publishBag(f : BagFactory, b : Business, ...) : SurpriseBag
+    + search(c : Customer, s : BagSortStrategy) : List<SurpriseBag>
+  }
+  class ExpirationService {
+    - orderRepo : OrderRepository
+    + expireOverdueOrders(now : LocalDateTime) : int
+  }
+  class PickupCodeGenerator {
+    + generate() : String
+  }
+  class ImpactStatsService <<opsiyonel>> {
+    + bagsSaved() : int
+    + estimatedFoodSavedKg() : double
+  }
+}
+
+OrderFacade --> BagRepository
+OrderFacade --> OrderRepository
+OrderFacade --> PaymentProcessor
+OrderFacade --> PickupCodeGenerator
+OrderFacade --> NotificationService
+BagService --> BagRepository
+BagService ..> BagFactory
+BagService ..> BagSortStrategy
+ExpirationService --> OrderRepository
+
+' =========================================================
+package "exception" {
+  class ArtanSepetException <<RuntimeException>>
+  class BagSoldOutException
+  class InvalidStateTransitionException
+  class InvalidPickupCodeException
+  class PaymentFailedException
+  class NotFoundException
+}
+
+ArtanSepetException <|-- BagSoldOutException
+ArtanSepetException <|-- InvalidStateTransitionException
+ArtanSepetException <|-- InvalidPickupCodeException
+ArtanSepetException <|-- PaymentFailedException
+ArtanSepetException <|-- NotFoundException
+
+AbstractOrderState ..> InvalidStateTransitionException : firlatir
+SurpriseBag ..> BagSoldOutException : firlatir
+
+@enduml

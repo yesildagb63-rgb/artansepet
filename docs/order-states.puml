@@ -1,0 +1,27 @@
+@startuml ArtanSepet_OrderStates
+' Siparis yasam dongusu (State pattern)
+title Siparis Durumlari
+
+[*] --> Reserved : placeOrder()\n[stok > 0, pickupCode uretilir]
+
+Reserved --> Paid : pay()\n[odeme basarili]
+Reserved --> Cancelled : cancel()\n[stok geri birakilir]
+Reserved --> Expired : expire()\n[teslim saati gecti]
+
+Paid --> ReadyForPickup : markReady()\n[isletme hazirladi]
+Paid --> Cancelled : cancel()\n[iade + stok geri]
+Paid --> Expired : expire()
+
+ReadyForPickup --> PickedUp : pickUp(code)\n[kod dogru]
+ReadyForPickup --> ReadyForPickup : pickUp(code)\n[kod yanlis -> InvalidPickupCodeException]
+ReadyForPickup --> Expired : expire()\n[teslim alinmadi]
+
+PickedUp --> [*]
+Cancelled --> [*]
+Expired --> [*]
+
+note right of PickedUp
+  Son durum. Buradan sonra
+  her islem InvalidStateTransitionException
+end note
+@enduml

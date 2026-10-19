@@ -1,0 +1,52 @@
+@startuml ArtanSepet_UseCases
+left to right direction
+title Artan Sepet - Use Case Diyagrami
+
+actor Musteri as C
+actor Isletme as B
+actor "Sistem\n(zamanlayici)" as S
+actor "Odeme Saglayici" as P
+
+rectangle "Artan Sepet" {
+  usecase "Kayit ol / Giris yap" as UC1
+  usecase "Paketleri listele" as UC2
+  usecase "Fiyat / mesafe / saate gore sirala" as UC3
+  usecase "Isletmeyi takip et" as UC4
+  usecase "Yeni paket bildirimi al" as UC5
+  usecase "Paket rezerve et" as UC6
+  usecase "Odeme yap" as UC7
+  usecase "Siparisi iptal et" as UC8
+  usecase "Teslim kodunu goster" as UC9
+  usecase "Puan ver (opsiyonel)" as UC10
+
+  usecase "Surpriz paket ekle" as UB1
+  usecase "Siparisleri gor" as UB2
+  usecase "Siparisi hazir isaretle" as UB3
+  usecase "Teslim kodunu dogrula" as UB4
+  usecase "Etki istatistiklerini gor (opsiyonel)" as UB5
+
+  usecase "Suresi gecen siparisleri kapat" as US1
+}
+
+C --> UC1
+C --> UC2
+UC2 <.. UC3 : <<extend>>
+C --> UC4
+UC5 --> C
+C --> UC6
+UC6 ..> UC7 : <<include>>
+C --> UC8
+C --> UC9
+C --> UC10
+
+B --> UC1
+B --> UB1
+UB1 ..> UC5 : <<include>>\n(takipcilere)
+B --> UB2
+B --> UB3
+B --> UB4
+B --> UB5
+
+S --> US1
+UC7 --> P
+@enduml

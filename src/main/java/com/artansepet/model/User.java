@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -27,7 +28,7 @@ public abstract class User {
         }
         this.id = UUID.randomUUID().toString();
         this.name = name;
-        this.email = email.toLowerCase();
+        this.email = email.toLowerCase(Locale.ROOT);
         this.passwordHash = hash(rawPassword);
     }
 

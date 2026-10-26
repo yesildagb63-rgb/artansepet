@@ -1,7 +1,11 @@
 package com.artansepet.model;
 
 public enum BusinessType {
-    BAKERY,
-    RESTAURANT,
-    MARKET
+    BAKERY,       
+    PASTRY,       
+    CAFE,         
+    RESTAURANT,   
+    MARKET,       
+    GREENGROCER,  
+    HOTEL         
 }

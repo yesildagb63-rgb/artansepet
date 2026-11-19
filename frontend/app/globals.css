@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  /* Ana renk: yaprak yesili */
+  --color-leaf-50: #f0f9f2;
+  --color-leaf-100: #dcf1e1;
+  --color-leaf-200: #bae3c6;
+  --color-leaf-500: #2f9e5b;
+  --color-leaf-600: #23824a;
+  --color-leaf-700: #1d6a3d;
+  --color-leaf-900: #12391f;
+
+  /* Vurgu: kehribar (indirim, firsat) */
+  --color-sun-100: #fef3dc;
+  --color-sun-400: #f7b955;
+  --color-sun-500: #f29d1f;
+  --color-sun-700: #b26a07;
+
+  /* Zemin ve metin */
+  --color-cream: #faf8f3;
+  --color-ink: #17231b;
+  --color-muted: #5f6f64;
+  --color-line: #e5e9e3;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+}

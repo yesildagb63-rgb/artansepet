@@ -1,27 +1,37 @@
 @startuml ArtanSepet_OrderStates
-' Siparis yasam dongusu (State pattern)
+' Siparis yasam dongusu (State pattern) - v1.0, 19 Kasim 2026
 title Siparis Durumlari
 
-[*] --> Reserved : placeOrder()\n[stok > 0, pickupCode uretilir]
+[*] --> Reserved : Order.create()\n[stok > 0, teslim kodu uretilir]
 
-Reserved --> Paid : pay()\n[odeme basarili]
+Reserved --> Paid : markPaid(transactionId)\n[odeme basarili]
 Reserved --> Cancelled : cancel()\n[stok geri birakilir]
 Reserved --> Expired : expire()\n[teslim saati gecti]
 
 Paid --> ReadyForPickup : markReady()\n[isletme hazirladi]
-Paid --> Cancelled : cancel()\n[iade + stok geri]
-Paid --> Expired : expire()
+Paid --> Cancelled : cancel()\n[stok geri + OrderFacade iade yapar]
+Paid --> Expired : expire()\n[stok geri birakilir]
 
 ReadyForPickup --> PickedUp : pickUp(code)\n[kod dogru]
 ReadyForPickup --> ReadyForPickup : pickUp(code)\n[kod yanlis -> InvalidPickupCodeException]
-ReadyForPickup --> Expired : expire()\n[teslim alinmadi]
+ReadyForPickup --> Expired : expire()\n[teslim alinmadi, stok geri]
 
 PickedUp --> [*]
 Cancelled --> [*]
 Expired --> [*]
 
+note right of ReadyForPickup
+  Iptal edilemez: isletme
+  paketi hazirlamistir.
+end note
+
 note right of PickedUp
-  Son durum. Buradan sonra
+  Son durumlar (PickedUp, Cancelled, Expired):
   her islem InvalidStateTransitionException
+end note
+
+note bottom of Expired
+  ExpirationService.expireOverdueOrders(now)
+  teslim saati gecen acik siparisleri buraya tasir.
 end note
 @enduml

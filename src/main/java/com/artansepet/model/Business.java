@@ -55,6 +55,10 @@ public class Business extends User implements BagSubject {
         return followers.size();
     }
 
+    public boolean isFollowedBy(BagObserver observer) {
+        return followers.contains(observer);
+    }
+
     // ---------------- Getter'lar ----------------
 
     public BusinessType getType() { return type; }

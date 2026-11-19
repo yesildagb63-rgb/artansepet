@@ -1,6 +1,6 @@
 @startuml ArtanSepet_ClassDiagram
-' Artan Sepet - UML Sinif Diyagrami (v0.1, 19 Ekim 2026)
-' VS Code'da "PlantUML" eklentisiyle Alt+D ile onizleyebilirsiniz.
+' Artan Sepet - UML Sinif Diyagrami (v1.0, 19 Kasim 2026)
+' Koddaki son hale gore guncellendi. VS Code'da "PlantUML" eklentisiyle Alt+D ile onizleyin.
 
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
@@ -16,28 +16,38 @@ package "model" {
     - name : String
     - email : String
     - passwordHash : String
+    + checkPassword(raw : String) : boolean
   }
 
   class Customer {
     - location : Location
     - notifications : List<String>
+    + follow(b : Business) : void
+    + unfollow(b : Business) : void
     + onNewBag(bag : SurpriseBag) : void
+    + updateLocation(l : Location) : void
+    + addNotification(msg : String) : void
   }
 
   class Business {
     - type : BusinessType
     - address : String
     - location : Location
-    - observers : List<BagObserver>
+    - followers : Set<BagObserver>
     + subscribe(o : BagObserver) : void
     + unsubscribe(o : BagObserver) : void
     + notifyObservers(bag : SurpriseBag) : void
+    + getFollowerCount() : int
   }
 
   enum BusinessType {
     BAKERY
+    PASTRY
+    CAFE
     RESTAURANT
     MARKET
+    GREENGROCER
+    HOTEL
   }
 
   enum DietaryTag {
@@ -58,33 +68,49 @@ package "model" {
     - business : Business
     - title : String
     - originalPrice : BigDecimal
+    - initialQuantity : int
     - quantity : int
     - pickupStart : LocalDateTime
     - pickupEnd : LocalDateTime
     - tags : Set<DietaryTag>
     - pricingStrategy : PricingStrategy
+    - SurpriseBag(b : Builder)
+    + {static} builder() : Builder
     + getCurrentPrice(now : LocalDateTime) : BigDecimal
     + reserveOne() : void <<synchronized>>
     + releaseOne() : void <<synchronized>>
     + isAvailable() : boolean
+    + isPickupOver(now : LocalDateTime) : boolean
+  }
+
+  class "SurpriseBag.Builder" as Builder <<Builder>> {
+    + business(b : Business) : Builder
+    + title(t : String) : Builder
+    + originalPrice(p : BigDecimal) : Builder
+    + quantity(q : int) : Builder
+    + pickupWindow(start, end) : Builder
+    + tag(t : DietaryTag) : Builder
+    + pricing(s : PricingStrategy) : Builder
+    + build() : SurpriseBag
   }
 
   class Order {
     - id : String
     - customer : Customer
     - bag : SurpriseBag
-    - paidPrice : BigDecimal
+    - price : BigDecimal
     - pickupCode : String
-    - transactionId : String
     - createdAt : LocalDateTime
-    - rating : Integer
+    - transactionId : String
     - state : OrderState
-    + pay(processor : PaymentProcessor) : void
+    + {static} create(c, bag, code, now) : Order
+    + markPaid(transactionId : String) : void
     + markReady() : void
     + pickUp(code : String) : void
     + cancel() : void
     + expire() : void
-    ~ setState(s : OrderState) : void
+    + isOverdue(now : LocalDateTime) : boolean
+    + isPaid() : boolean
   }
 }
 
@@ -93,52 +119,50 @@ User <|-- Business
 Business --> BusinessType
 Business "1" o-- "*" SurpriseBag : sunar >
 SurpriseBag --> "*" DietaryTag
+SurpriseBag +-- Builder
+Builder ..> SurpriseBag : <<create>>
 Customer "1" --> "*" Order : verir >
 Order "*" --> "1" SurpriseBag
+Customer --> Location
+Business --> Location
 
 ' =========================================================
-package "creation (Builder + Factory Method)" {
-  class SurpriseBagBuilder {
-    + business(b : Business) : SurpriseBagBuilder
-    + title(t : String) : SurpriseBagBuilder
-    + originalPrice(p : BigDecimal) : SurpriseBagBuilder
-    + quantity(q : int) : SurpriseBagBuilder
-    + pickupWindow(start, end) : SurpriseBagBuilder
-    + tag(t : DietaryTag) : SurpriseBagBuilder
-    + pricing(s : PricingStrategy) : SurpriseBagBuilder
-    + build() : SurpriseBag
-  }
-
+package "creation (Factory Method)" {
   abstract class BagFactory {
-    + createBag(b : Business, price, qty, start, end) : SurpriseBag
-    # {abstract} configure(builder : SurpriseBagBuilder) : void
+    + createBag(b, price, qty, start, end) : SurpriseBag
+    + createBag(b, price, qty, start, end, pricing) : SurpriseBag
+    # {abstract} configure(builder : Builder) : void
+    # {abstract} supportedType() : BusinessType
+    + {static} forType(t : BusinessType) : BagFactory
   }
-  class BakeryBagFactory {
-    # configure(builder) : void
-  }
-  class RestaurantBagFactory {
-    # configure(builder) : void
-  }
-  class MarketBagFactory {
-    # configure(builder) : void
-  }
+  class BakeryBagFactory
+  class PastryBagFactory
+  class CafeBagFactory
+  class RestaurantBagFactory
+  class MarketBagFactory
+  class GreengrocerBagFactory
+  class HotelBagFactory
 }
 
-SurpriseBagBuilder ..> SurpriseBag : <<create>>
-BagFactory ..> SurpriseBagBuilder : kullanir
 BagFactory <|-- BakeryBagFactory
+BagFactory <|-- PastryBagFactory
+BagFactory <|-- CafeBagFactory
 BagFactory <|-- RestaurantBagFactory
 BagFactory <|-- MarketBagFactory
+BagFactory <|-- GreengrocerBagFactory
+BagFactory <|-- HotelBagFactory
+BagFactory ..> Builder : kullanir
 
 ' =========================================================
 package "state (State)" {
   interface OrderState {
-    + pay(o : Order, p : PaymentProcessor) : void
-    + markReady(o : Order) : void
-    + pickUp(o : Order, code : String) : void
-    + cancel(o : Order) : void
-    + expire(o : Order) : void
-    + name() : String
+    + markPaid(o : Order) : OrderState
+    + markReady(o : Order) : OrderState
+    + pickUp(o : Order, code : String) : OrderState
+    + cancel(o : Order) : OrderState
+    + expire(o : Order) : OrderState
+    + displayName() : String
+    + isFinal() : boolean
   }
   abstract class AbstractOrderState
   note bottom of AbstractOrderState
@@ -167,20 +191,22 @@ AbstractOrderState <|-- ExpiredState
 package "pricing (Strategy)" {
   interface PricingStrategy {
     + calculate(bag : SurpriseBag, now : LocalDateTime) : BigDecimal
+    + {static} noDiscount() : PricingStrategy
   }
   class FixedDiscountStrategy {
-    - rate : double
+    - rate : BigDecimal
   }
   class LastHourDiscountStrategy {
-    - baseRate : double
-    - extraRate : double
+    - baseRate : BigDecimal
+    - lastHourRate : BigDecimal
   }
   class WeekendDiscountStrategy {
-    - weekendRate : double
+    - weekendRate : BigDecimal
   }
 
   interface BagSortStrategy {
-    + sort(bags : List<SurpriseBag>, c : Customer) : List<SurpriseBag>
+    + comparator(c : Customer, now : LocalDateTime) : Comparator<SurpriseBag>
+    + sort(bags, c, now) : List<SurpriseBag>
   }
   class SortByPrice
   class SortByDistance
@@ -205,40 +231,32 @@ package "notification (Observer)" {
   interface BagObserver {
     + onNewBag(bag : SurpriseBag) : void
   }
-  class NotificationService {
-    + send(c : Customer, message : String) : void
-  }
 }
 
 BagSubject <|.. Business
 BagObserver <|.. Customer
 Business o--> "*" BagObserver : takipciler
-Customer ..> NotificationService
 
 ' =========================================================
 package "payment (Adapter)" {
   interface PaymentProcessor {
-    + charge(c : Customer, amount : BigDecimal) : PaymentResult
-    + refund(transactionId : String) : void
+    + charge(c : Customer, amount : BigDecimal, orderId : String) : PaymentResult
+    + refund(transactionId : String, amount : BigDecimal) : void
   }
   class PaymentResult <<record>> {
     + success : boolean
     + transactionId : String
     + message : String
   }
-  class IyzicoAdapter {
-    - client : IyzicoClient
-  }
-  class PaytrAdapter {
-    - gateway : PaytrGateway
-  }
+  class IyzicoAdapter
+  class PaytrAdapter
   class IyzicoClient <<sahte 3. parti>> {
-    + createPayment(req : Map<String,Object>) : String
+    + createPayment(req : Map<String,Object>) : Map<String,Object>
     + cancelPayment(paymentId : String) : boolean
   }
   class PaytrGateway <<sahte 3. parti>> {
-    + sendTransaction(merchantOid, kurus : long) : int
-    + reverse(merchantOid) : void
+    + sendTransaction(merchantOid : String, kurus : long) : int
+    + reverse(merchantOid : String) : void
   }
 }
 
@@ -251,23 +269,28 @@ PaymentProcessor ..> PaymentResult
 ' =========================================================
 package "repository (Singleton + Repository)" {
   class DataStore <<Singleton>> {
-    - {static} instance : DataStore
     - DataStore()
     + {static} getInstance() : DataStore
+    + clear() : void
   }
   interface UserRepository {
     + save(u : User) : void
     + findById(id : String) : Optional<User>
+    + findByEmail(email : String) : Optional<User>
+    + findAll() : List<User>
   }
   interface BagRepository {
     + save(b : SurpriseBag) : void
     + findById(id : String) : Optional<SurpriseBag>
     + findAvailable() : List<SurpriseBag>
+    + findByBusiness(b : Business) : List<SurpriseBag>
   }
   interface OrderRepository {
     + save(o : Order) : void
     + findById(id : String) : Optional<Order>
-    + findByState(stateName : String) : List<Order>
+    + findByCustomer(c : Customer) : List<Order>
+    + findByBusiness(b : Business) : List<Order>
+    + findOpen() : List<Order>
   }
   class InMemoryUserRepository
   class InMemoryBagRepository
@@ -282,40 +305,31 @@ InMemoryBagRepository ..> DataStore
 InMemoryOrderRepository ..> DataStore
 
 ' =========================================================
-package "service (Facade)" {
-  class OrderFacade {
-    - bagRepo : BagRepository
-    - orderRepo : OrderRepository
-    - payment : PaymentProcessor
-    - codeGenerator : PickupCodeGenerator
-    - notifier : NotificationService
-    + placeOrder(customerId, bagId) : Order
-    + confirmPickup(orderId, code : String) : void
+package "service (Facade + servisler)" {
+  class OrderFacade <<Facade>> {
+    + placeOrder(customerId, bagId, now) : Order
     + cancelOrder(orderId : String) : void
+    + markReady(orderId : String) : void
+    + confirmPickup(orderId : String, code : String) : void
   }
   class BagService {
-    - bagRepo : BagRepository
-    + publishBag(f : BagFactory, b : Business, ...) : SurpriseBag
-    + search(c : Customer, s : BagSortStrategy) : List<SurpriseBag>
+    + publishBag(b, price, qty, start, end, pricing) : SurpriseBag
+    + search(c : Customer, sort : BagSortStrategy, now) : List<SurpriseBag>
+    + listBusinessBags(b : Business) : List<SurpriseBag>
   }
   class ExpirationService {
-    - orderRepo : OrderRepository
     + expireOverdueOrders(now : LocalDateTime) : int
   }
   class PickupCodeGenerator {
     + generate() : String
   }
-  class ImpactStatsService <<opsiyonel>> {
-    + bagsSaved() : int
-    + estimatedFoodSavedKg() : double
-  }
 }
 
+OrderFacade --> UserRepository
 OrderFacade --> BagRepository
 OrderFacade --> OrderRepository
 OrderFacade --> PaymentProcessor
 OrderFacade --> PickupCodeGenerator
-OrderFacade --> NotificationService
 BagService --> BagRepository
 BagService ..> BagFactory
 BagService ..> BagSortStrategy
@@ -338,6 +352,8 @@ ArtanSepetException <|-- PaymentFailedException
 ArtanSepetException <|-- NotFoundException
 
 AbstractOrderState ..> InvalidStateTransitionException : firlatir
+ReadyForPickupState ..> InvalidPickupCodeException : firlatir
 SurpriseBag ..> BagSoldOutException : firlatir
+OrderFacade ..> PaymentFailedException : firlatir
 
 @enduml

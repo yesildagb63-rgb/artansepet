@@ -1,5 +1,6 @@
 package com.artansepet.repository;
 
+import com.artansepet.model.Order;
 import com.artansepet.model.SurpriseBag;
 import com.artansepet.model.User;
 
@@ -15,6 +16,7 @@ public final class DataStore {
 
     private final Map<String, User> users = new ConcurrentHashMap<>();
     private final Map<String, SurpriseBag> bags = new ConcurrentHashMap<>();
+    private final Map<String, Order> orders = new ConcurrentHashMap<>();
 
     // private: disaridan "new DataStore()" yazilamaz
     private DataStore() { }
@@ -34,10 +36,12 @@ public final class DataStore {
     // Repository'lerin kullanacagi haritalar (paket ici erisim)
     Map<String, User> users() { return users; }
     Map<String, SurpriseBag> bags() { return bags; }
+    Map<String, Order> orders() { return orders; }
 
     /** Tum veriyi siler. Sadece testlerde, testler birbirini etkilemesin diye kullanilir. */
     public void clear() {
         users.clear();
         bags.clear();
+        orders.clear();
     }
 }

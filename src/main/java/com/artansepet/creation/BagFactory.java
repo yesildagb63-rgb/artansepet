@@ -3,6 +3,7 @@ package com.artansepet.creation;
 import com.artansepet.model.Business;
 import com.artansepet.model.BusinessType;
 import com.artansepet.model.SurpriseBag;
+import com.artansepet.pricing.PricingStrategy;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,12 +16,19 @@ import java.util.Objects;
  */
 public abstract class BagFactory {
 
+    /** Indirimsiz paket olusturur. */
+    public final SurpriseBag createBag(Business business, BigDecimal price, int quantity,
+                                       LocalDateTime pickupStart, LocalDateTime pickupEnd) {
+        return createBag(business, price, quantity, pickupStart, pickupEnd, PricingStrategy.noDiscount());
+    }
+
     /**
      * Ortak akis: her fabrika bu adimlari ayni sirayla izler.
      * final: alt siniflar bu akisi degistiremez, sadece configure'u doldurur.
      */
     public final SurpriseBag createBag(Business business, BigDecimal price, int quantity,
-                                       LocalDateTime pickupStart, LocalDateTime pickupEnd) {
+                                       LocalDateTime pickupStart, LocalDateTime pickupEnd,
+                                       PricingStrategy pricing) {
         Objects.requireNonNull(business, "Isletme belirtilmeli");
         if (business.getType() != supportedType()) {
             throw new IllegalArgumentException(getClass().getSimpleName()
@@ -32,7 +40,8 @@ public abstract class BagFactory {
                 .business(business)
                 .originalPrice(price)
                 .quantity(quantity)
-                .pickupWindow(pickupStart, pickupEnd);
+                .pickupWindow(pickupStart, pickupEnd)
+                .pricing(pricing);
 
         configure(builder);          // <-- alt sinifin doldurdugu kisim
         return builder.build();
